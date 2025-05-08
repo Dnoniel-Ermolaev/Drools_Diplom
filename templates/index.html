@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система диагностики ОКС</title>
+    <style>
+        /* Стили почти те же, но добавим для списка визитов */
+        body { font-family: sans-serif; line-height: 1.6; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1250px; /* Еще чуть шире */ margin: 0 auto; padding: 25px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background-color: #fff; }
+
+        h1 { color: #343a40; text-align: center; width: 100%; margin-bottom: 20px; }
+
+        .main-content-wrapper { display: flex; width: 100%; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+
+        .patient-list-column { flex: 1; /* Увеличим долю колонки пациентов */ padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; min-height: 400px; display: flex; flex-direction: column; order: 1; max-height: 600px; overflow-y: auto; }
+        .left-column { flex: 1.2; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; min-height: 400px; display: flex; flex-direction: column; order: 2; }
+        .right-column { flex: 1; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; min-height: 400px; display: flex; flex-direction: column; order: 3; }
+
+        .patient-list-column h2 { font-size: 1.3rem; margin-bottom: 10px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0; }
+        .patient-list-item { display: block; padding: 8px 10px; margin-bottom: 5px; background-color: #f1f3f5; border: 1px solid #e9ecef; border-radius: 4px; text-decoration: none; color: #343a40; transition: background-color 0.2s ease; font-size: 1rem; /* Вернул размер */ font-weight: normal; }
+        .patient-list-item:hover { background-color: #e9ecef; }
+        .patient-list-item.active { background-color: #007bff; border-color: #0056b3; color: white; font-weight: bold; }
+
+        /* Стили для списка визитов */
+        .visit-list { margin-top: 5px; margin-left: 15px; padding-left: 10px; border-left: 2px solid #dee2e6; }
+        .visit-list-item { display: block; padding: 5px 8px; margin-bottom: 4px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 3px; text-decoration: none; color: #495057; font-size: 0.85rem; transition: background-color 0.2s ease; }
+        .visit-list-item:hover { background-color: #e9ecef; }
+        .visit-list-item.active { background-color: #cfe2ff; border-color: #b6d4fe; color: #0a58ca; font-weight: bold; }
+
+        .new-patient-link { display: inline-block; margin-bottom: 15px; padding: 8px 15px; background-color: #198754; color: white; text-decoration: none; border-radius: 4px; text-align: center; transition: background-color 0.3s ease; }
+        .new-patient-link:hover { background-color: #157347; }
+
+        /* --- Остальные стили --- */
+        .column-heading { font-size: 1.3rem; margin-bottom: 15px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        .tabs { display: flex; margin-bottom: 15px; border-bottom: 1px solid #ccc; }
+        .tab-button { padding: 10px 15px; cursor: pointer; border: none; background-color: transparent; border-bottom: 2px solid transparent; transition: border-bottom 0.3s ease; font-size: 1rem; margin-right: 5px; }
+        .tab-button.active { border-bottom-color: #007bff; font-weight: bold; color: #007bff; }
+        .tab-content { flex-grow: 1; overflow-y: auto; display: none; padding-top: 10px;}
+        .tab-content.active { display: block; }
+        .data-item { padding: 10px; margin-bottom: 8px; background-color: #e9ecef; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease; user-select: none;}
+        .data-item:hover { background-color: #d3d9df; border-color: #c8ced3; }
+        .data-item.selected { background-color: #cce5ff; border-color: #b8daff; font-weight: bold; }
+        .anamnesis-display { flex-grow: 1; overflow-y: auto; }
+        .anamnesis-display p.placeholder { text-align: center; color: #888; margin-top: 50px; }
+        .anamnesis-item { padding: 10px; margin-bottom: 8px; background-color: #e9f5ff; border: 1px solid #b8daff; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease; }
+        .anamnesis-item:hover { background-color: #cce5ff; }
+        .anamnesis-item label { font-weight: bold; color: #0056b3; margin-right: 5px;}
+        .anamnesis-item input[type="number"] { padding: 4px; border: 1px solid #b8daff; border-radius: 3px; width: 80px; font-size: 0.9rem;}
+
+        /* --- Форма и результаты --- */
+        #diagnosis-form { width: 100%; margin-top: 20px; order: 4; }
+        .form-controls { display: flex; align-items: flex-end; /* Выровнять по низу */ justify-content: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; } /* Группа для метки и поля */
+        .form-group label { font-weight: bold; margin-bottom: 3px; font-size: 0.9rem; }
+        /* Стили для текстовых полей и read-only даты */
+        .form-controls input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        #patient_name { min-width: 200px; flex-grow: 1; max-width: 350px;}
+        #visit_date_display { /* Стиль для read-only даты из предыдущей версии */
+             padding: 10px; border: 1px solid #ccc; border-radius: 4px;
+             color: #6c757d; background-color: #e9ecef; cursor: default;
+             min-width: 180px; /* Минимальная ширина */
+        }
+        .form-controls button { padding: 10px 25px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s ease; height: 40px; /* Фикс высоты кнопок */}
+        button[name="action"][value="save"] { background-color: #28a745; }
+        button[name="action"][value="save"]:hover { background-color: #218838; }
+        button[name="action"][value="diagnose"] { background-color: #007bff; }
+        button[name="action"][value="diagnose"]:hover { background-color: #0056b3; }
+
+        .results, .message { margin-top: 20px; padding: 15px; border-radius: 8px; order: 5; }
+        .results { border: 1px solid #28a745; background-color: #d4edda; color: #155724; }
+        .results h2 { color: #155724; border-bottom-color: #c3e6cb; margin-top: 0; }
+        .message.error { color: #721c24; border: 1px solid #f5c6cb; background-color: #f8d7da; }
+        .message.success { color: #155724; border: 1px solid #c3e6cb; background-color: #d4edda; }
+
+        #diagnosis-form input[type="hidden"] { display: none; }
+
+         /* --- Адаптивность --- */
+         @media (max-width: 992px) {
+             .main-content-wrapper { flex-direction: column; }
+             .patient-list-column, .left-column, .right-column { order: unset; margin: 0 0 15px 0; max-height: none; min-height: 250px; }
+             .patient-list-column { max-height: 300px; }
+             .form-controls { flex-direction: column; align-items: stretch; }
+             #patient_name, #visit_date_display { max-width: none; } /* Убрали ограничение */
+             .form-controls button { width: 100%; }
+         }
+         @media (max-width: 768px) {
+              /* Дополнительные стили для мобильных, если нужны */
+         }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Система диагностики ОКС</h1>
+
+        {# Сообщения #}
+        {% if save_message %}
+            <div class="message success">{{ save_message }}</div>
+        {% endif %}
+        {% if form_error %}
+            <div class="message error">{{ form_error }}</div>
+        {% endif %}
+
+        <div class="main-content-wrapper">
+
+            <!-- Колонка списка пациентов и визитов -->
+            <div class="patient-list-column">
+                <h2>Пациенты</h2>
+                <a href="{{ url_for('new_patient') }}" class="new-patient-link">Новый пациент</a>
+                {% if patients %}
+                    {% for patient in patients %}
+                        {# Ссылка на пациента #}
+                        <a href="{{ url_for('index', patient_id=patient.id) }}"
+                           class="patient-list-item {% if patient.id == selected_patient_id %}active{% endif %}">
+                           {{ patient.name }}
+                        </a>
+                        {# Если этот пациент выбран, показываем список его визитов #}
+                        {% if patient.id == selected_patient_id and visits %}
+                            <div class="visit-list">
+                                {% for visit in visits %}
+                                    {# Ссылка на конкретный визит #}
+                                    <a href="{{ url_for('index', patient_id=selected_patient_id, visit_id=visit.id) }}"
+                                       class="visit-list-item {% if visit.id == selected_visit_id %}active{% endif %}">
+                                       {{ visit.visit_date }} {# Отображаем дату из БД #}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% elif patient.id == selected_patient_id %}
+                             <div class="visit-list">
+                                 <span style="font-size: 0.85rem; color: #6c757d; padding: 5px 8px;">Нет сохраненных визитов</span>
+                             </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p style="color: #888;">Нет сохраненных пациентов.</p>
+                {% endif %}
+            </div>
+
+            <!-- Колонка Данные для анализа -->
+            <div class="left-column">
+                <div class="column-heading">Данные для анализа</div>
+                <div class="tabs">
+                    <button class="tab-button active" onclick="showTab('symptoms-tab')">Симптомы</button>
+                    <button class="tab-button" onclick="showTab('tests-tab')">Анализы</button>
+                </div>
+                <div id="symptoms-tab" class="tab-content active">
+                    <div class="data-item symptom" data-name="chestPain" data-label="Боль в груди">Боль в груди</div>
+                    <div class="data-item symptom" data-name="ecgAbnormal" data-label="Отклонения на ЭКГ">Отклонения на ЭКГ</div>
+                    <div class="data-item symptom" data-name="troponinHigh" data-label="Повышенный тропонин">Уровень тропонина повышен</div>
+                </div>
+                <div id="tests-tab" class="tab-content">
+                    <div class="data-item test" data-name="heartRate" data-label="ЧСС (уд/мин)" data-type="number">Частота сердечных сокращений</div>
+                    <div class="data-item test" data-name="systolicBP" data-label="Систолическое АД (мм рт. ст.)" data-type="number">Систолическое АД</div>
+                </div>
+            </div>
+
+            <!-- Колонка Анамнез -->
+            <div class="right-column">
+                <div class="column-heading">Анамнез</div>
+                <div class="anamnesis-display" id="anamnesis-display">
+                     {# Плейсхолдеры как раньше #}
+                     {% if not selected_visit_id and selected_patient_id %}
+                         <p class="placeholder">Выберите дату визита слева или введите новые данные и нажмите "Сохранить".</p>
+                     {% elif not selected_patient_id %}
+                          <p class="placeholder">Выберите пациента слева или введите данные для нового пациента.</p>
+                     {% else %}
+                           <p class="placeholder">Дважды щелкните симптомы/анализы слева, чтобы добавить/изменить данные для этого визита.</p>
+                     {% endif %}
+                </div>
+            </div>
+
+        </div> <!-- End main-content-wrapper -->
+
+        <!-- Форма -->
+        <form id="diagnosis-form" method="POST">
+            <!-- Скрытые поля для JS и отправки данных симптомов/анализов -->
+            <input type="hidden" id="hidden-chestPain" name="chestPain" value="{{ 'true' if inputs.chestPain else 'false' }}">
+            <input type="hidden" id="hidden-ecgAbnormal" name="ecgAbnormal" value="{{ 'true' if inputs.ecgAbnormal else 'false' }}">
+            <input type="hidden" id="hidden-troponinHigh" name="troponinHigh" value="{{ 'true' if inputs.troponinHigh else 'false' }}">
+            <input type="hidden" id="hidden-heartRate" name="heartRate" value="{{ inputs.heartRate | string }}">
+            <input type="hidden" id="hidden-systolicBP" name="systolicBP" value="{{ inputs.systolicBP | string }}">
+
+            <!-- Скрытые поля для передачи ID текущего контекста -->
+            <input type="hidden" name="current_patient_id" value="{{ selected_patient_id or '' }}">
+            <input type="hidden" name="current_visit_id" value="{{ selected_visit_id or '' }}">
+            <!-- Скрытое поле для передачи изначальной даты (если нужно было бы для readonly) -->
+            <!-- <input type="hidden" name="visit_date_display" value="{{ inputs.visit_date or '' }}"> -->
+
+
+            <!-- Видимые контроли формы -->
+            <div class="form-controls">
+                <div class="form-group">
+                    <label for="patient_name">Имя пациента:</label>
+                    <input type="text" id="patient_name" name="patient_name" value="{{ inputs.patient_name or '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="visit_date">Дата визита:</label>
+                    {# Используем datetime-local. Значение берем из inputs.visit_date,
+                    которое Flask должен передать в формате ГГГГ-ММ-ДДTЧЧ:ММ #}
+                    <input type="datetime-local" id="visit_date" name="visit_date" value="{{ inputs.visit_date }}" required>
+                </div>
+
+                {# Кнопки действий #}
+                <button type="submit" name="action" value="save">Сохранить визит</button>
+                <button type="submit" name="action" value="diagnose">Показать диагноз</button>
+            </div>
+        </form>
+
+        <!-- Результаты диагностики -->
+        {% if diagnosis and not form_error %}
+            <div class="results">
+                <h2>Полученный диагноз:</h2>
+                <p>{{ diagnosis }}</p>
+            </div>
+        {% elif diagnosis and "Ошибка:" in diagnosis %}
+             <div class="message error">{{ diagnosis }}</div>
+        {% endif %}
+
+    </div> <!-- End container -->
+
+    <script>
+       // ВЕСЬ ВАШ ПРЕДЫДУЩИЙ РАБОЧИЙ КОД JAVASCRIPT БЕЗ ИЗМЕНЕНИЙ
+       // ... (весь JS код как в предыдущем ответе) ...
+
+        let patientData = {
+            chestPain: false, ecgAbnormal: false, troponinHigh: false,
+            heartRate: 0, systolicBP: 0
+        };
+        let selectedItems = {
+            chestPain: false, ecgAbnormal: false, troponinHigh: false,
+            heartRate: false, systolicBP: false
+        };
+
+        const anamnesisDisplay = document.getElementById('anamnesis-display');
+        const diagnosisForm = document.getElementById('diagnosis-form');
+
+        function updateAnamnesisDisplay() { /* ... без изменений ... */
+            anamnesisDisplay.innerHTML = '';
+            let hasDataToDisplay = false;
+            const displayOrder = [
+                { name: 'chestPain', label: 'Боль в груди', type: 'boolean' },
+                { name: 'ecgAbnormal', label: 'Отклонения на ЭКГ', type: 'boolean' },
+                { name: 'troponinHigh', label: 'Повышенный тропонин', type: 'boolean' },
+                { name: 'heartRate', label: 'ЧСС (уд/мин)', type: 'number' },
+                { name: 'systolicBP', label: 'Систолическое АД (мм рт. ст.)', type: 'number' }
+            ];
+
+            displayOrder.forEach(itemInfo => {
+                const name = itemInfo.name;
+                const label = itemInfo.label;
+                const type = itemInfo.type;
+                const isSelected = selectedItems[name] === true;
+                const value = patientData[name];
+
+                if (isSelected) {
+                    hasDataToDisplay = true;
+                    const displayElement = document.createElement('div');
+                    displayElement.classList.add('anamnesis-item');
+                    displayElement.dataset.name = name;
+                    if (type === 'boolean') {
+                        displayElement.classList.add('symptom');
+                        displayElement.innerHTML = `<strong>${label}:</strong> ${value ? 'Да' : 'Нет'}`;
+                    } else if (type === 'number') {
+                        displayElement.classList.add('test');
+                        displayElement.innerHTML = `
+                        <label>${label}:</label>
+                        <input type="number" value="${value}" data-anamnesis-name="${name}" placeholder="Введите число">`;
+                    }
+                    anamnesisDisplay.appendChild(displayElement);
+                }
+            });
+            // Управление плейсхолдером
+             const initialPlaceholder = document.querySelector('#anamnesis-display .placeholder');
+             if (hasDataToDisplay && initialPlaceholder) {
+                  initialPlaceholder.remove();
+             } else if (!hasDataToDisplay && !initialPlaceholder && document.getElementById('anamnesis-display').innerHTML.trim() === '') {
+                  // Добавляем базовый плейсхолдер, если данных нет и HTML плейсхолдера тоже нет
+                  anamnesisDisplay.innerHTML = '<p class="placeholder">Дважды щелкните данные слева для добавления/изменения.</p>';
+            }
+        }
+
+        function updateHiddenInputs() { /* ... без изменений ... */
+             for (const name in patientData) {
+                 if (patientData.hasOwnProperty(name)) {
+                     const hiddenInput = document.getElementById(`hidden-${name}`);
+                     if (hiddenInput) {
+                         const value = patientData[name];
+                         const isSelected = selectedItems[name] === true;
+                         if (isSelected) {
+                             hiddenInput.value = (typeof value === 'boolean') ? (value ? 'true' : 'false') : value;
+                         } else {
+                             hiddenInput.value = ''; // Пусто, если не выбрано
+                         }
+                     }
+                 }
+             }
+        }
+
+        function showTab(tabId) { /* ... без изменений ... */
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { /* ... без изменений ... */
+             // Инициализация patientData и selectedItems из скрытых полей
+             for (const name in patientData) {
+                 if (patientData.hasOwnProperty(name)) {
+                     const hiddenInput = document.getElementById(`hidden-${name}`);
+                     if (hiddenInput) {
+                         const valueStr = hiddenInput.value;
+                         const leftItem = document.querySelector(`.data-item[data-name="${name}"]`);
+                         const type = leftItem ? (leftItem.dataset.type === 'number' ? 'number' : 'boolean') : 'unknown';
+                         let actualValue;
+                         let wasSelected = false;
+
+                         if (type === 'boolean') {
+                             actualValue = valueStr === 'true';
+                             wasSelected = actualValue;
+                         } else if (type === 'number') {
+                             const parsedValue = parseFloat(valueStr);
+                             actualValue = (valueStr !== '' && !isNaN(parsedValue)) ? parsedValue : 0;
+                             wasSelected = valueStr !== '' && actualValue !== 0;
+                         } else { actualValue = valueStr; wasSelected = valueStr !== '';}
+
+                         patientData[name] = actualValue;
+                         selectedItems[name] = wasSelected;
+                         if (wasSelected && leftItem) leftItem.classList.add('selected');
+
+                     } else { console.warn(`Не найдено скрытое поле для ${name}`); }
+                 }
+             }
+             updateAnamnesisDisplay();
+             updateHiddenInputs();
+
+             // --- Обработчики событий (остаются без изменений) ---
+             document.querySelectorAll('.data-item').forEach(item => {
+                 item.addEventListener('dblclick', (event) => {
+                    const name = event.target.dataset.name;
+                    const type = event.target.dataset.type === 'number' ? 'number' : 'boolean';
+                    if (!name) return;
+                    const isCurrentlySelected = selectedItems[name] === true;
+                    if (!isCurrentlySelected) {
+                        event.target.classList.add('selected');
+                        selectedItems[name] = true;
+                        if (type === 'boolean') patientData[name] = true;
+                        else if (type === 'number') patientData[name] = 1;
+                    } else {
+                        if (type === 'boolean') patientData[name] = !patientData[name];
+                        else if (type === 'number') {
+                            event.target.classList.remove('selected');
+                            selectedItems[name] = false;
+                            patientData[name] = 0;
+                        }
+                    }
+                    updateAnamnesisDisplay(); updateHiddenInputs();
+                 });
+             });
+             anamnesisDisplay.addEventListener('dblclick', (event) => {
+                const targetItem = event.target.closest('.anamnesis-item');
+                if (targetItem) {
+                    const name = targetItem.dataset.name;
+                    const leftItem = document.querySelector(`.data-item[data-name="${name}"]`);
+                    if (name && leftItem) {
+                        const type = leftItem.dataset.type === 'number' ? 'number' : 'boolean';
+                        patientData[name] = (type === 'number') ? 0 : false;
+                        selectedItems[name] = false;
+                        leftItem.classList.remove('selected');
+                        updateAnamnesisDisplay(); updateHiddenInputs();
+                    }
+                }
+             });
+             anamnesisDisplay.addEventListener('input', (event) => {
+                if (event.target.tagName === 'INPUT' && event.target.type === 'number') {
+                    const name = event.target.dataset.anamnesisName;
+                    const value = parseFloat(event.target.value);
+                    const numericValue = isNaN(value) ? 0 : value;
+                    if (name && patientData.hasOwnProperty(name)) {
+                        patientData[name] = numericValue;
+                        updateHiddenInputs();
+                    }
+                }
+             });
+             showTab('symptoms-tab');
+        }); // End DOMContentLoaded
+
+        diagnosisForm.addEventListener('submit', (event) => { /* ... без изменений ... */
+             console.log("Form submit...");
+             updateHiddenInputs();
+        });
+    </script>
+
+</body>
+</html>
