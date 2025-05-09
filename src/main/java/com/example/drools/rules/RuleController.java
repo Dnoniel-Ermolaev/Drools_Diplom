@@ -15,6 +15,14 @@ public class RuleController {
     public RuleController() {
         KieServices kieServices = KieServices.Factory.get();
         this.kieContainer = kieServices.getKieClasspathContainer();
+
+        // Отладка: выведем доступные KieBase и KieSession
+        System.out.println("Доступные KieBase: " + kieContainer.getKieBaseNames());
+        for (String kieBaseName : kieContainer.getKieBaseNames()) {
+            System.out.println("KieSessions для " + kieBaseName + ": " + kieContainer.getKieSessionNamesInKieBase(kieBaseName));
+        }
+
+        // Проверяем, существует ли KieBase
         if (this.kieContainer.getKieBase("defaultKieBase") == null) {
             System.err.println("WARNING: Drools KieBase 'defaultKieBase' не найден. Проверьте kmodule.xml и расположение drl файла.");
         } else {
@@ -32,7 +40,7 @@ public class RuleController {
             @RequestParam(name = "heartRate", required = false) String heartRateStr,
             @RequestParam(name = "systolicBP", required = false) String systolicBPStr
     ) {
-
+        // Создаём KieSession напрямую через имя сессии
         KieSession kieSession = kieContainer.newKieSession("defaultKieSession");
         if (kieSession == null) {
             return "Ошибка: Drools KieSession 'defaultKieSession' не найден.";

@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Добавляем путь к директории src/main/python/
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import requests
 from flask import Flask, render_template, request, url_for, redirect
 from datetime import datetime
@@ -10,10 +16,12 @@ from database import DatabaseManager
 class DiagnosisWebApp:
 
     def __init__(self, api_url, template_name='index.html'):
-
+        # Указываем путь к директории src/main/resources/templates/
+        template_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'resources', 'templates'))
+        
         self.api_url = api_url              # URL запущенного Java сервиса
         self.template_name = template_name  # Имя HTML файла
-        self.app = Flask(__name__)          # Создаем экземпляр Flask приложения
+        self.app = Flask(__name__, template_folder=template_folder)  # Создаем экземпляр Flask приложения с указанием пути к шаблонам
         
         # Инициализируем менеджер БД
         self.db_manager = DatabaseManager() # Использует DB_NAME из database.py

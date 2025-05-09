@@ -1,8 +1,17 @@
 # database.py
 import sqlite3
 from datetime import datetime
+import os
 
-DB_NAME = 'patients_visits.db' # Новое имя БД для чистоты
+# Рассчитываем путь к src/main/resources/
+# database.py находится в src/main/python/, поднимаемся на 2 уровня вверх (до src/), затем в main/resources/
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'db'))
+DB_NAME = os.path.join(BASE_DIR, 'acs_diagnosis.db')  # Новое имя БД
+
+# Отладка: выведем пути для проверки
+print(f"Путь к database.py: {os.path.dirname(__file__)}")
+print(f"BASE_DIR: {BASE_DIR}")
+print(f"DB_NAME: {DB_NAME}")
 
 # Класс Patient больше не нужен для хранения всех данных,
 # но может быть полезен для передачи ID и имени.

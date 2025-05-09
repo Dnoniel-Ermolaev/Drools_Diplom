@@ -1,3 +1,5 @@
+/venv/
+/target/
 # Исключение скомпилированных файлов
 target/
 __pycache__/
@@ -14,23 +16,11 @@ __pycache__/database.cpython-312.pyc
 *.iws
 *.ipr
 *.log
-drools-decision-okr-project-main/.idea/compiler.xml
-drools-decision-okr-project-main/.idea/encodings.xml
-drools-decision-okr-project-main/.idea/jarRepositories.xml
-drools-decision-okr-project-main/.idea/misc.xml
 /shelf/
 workspace.xml
 
-# Исключение баз данных и логов
-*.db
-patients_history.db
-*.log
-
 # Исключение резервных копий
 *~
-
-# Исключение сгенерированных Maven-файлов
-**/META-INF/
 
 # Локальные конфигурации (если есть)
 application.properties
