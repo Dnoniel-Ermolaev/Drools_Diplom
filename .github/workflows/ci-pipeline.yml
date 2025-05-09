@@ -3,10 +3,10 @@ name: CI Pipeline
 on:
   push:
     branches:
-      - master  # Изменили main на master
+      - master
   pull_request:
     branches:
-      - master  # Изменили main на master
+      - master
 
 jobs:
   build-and-test:
@@ -50,19 +50,27 @@ jobs:
       - name: Run Maven tests
         run: mvn clean test
 
-      # Шаг 7: Устанавливаем Python 3.8
+      # Шаг 7: Сохраняем результаты тестов как артефакт
+      - name: Upload Maven test reports
+        if: always()  # Выполняем даже при ошибке, чтобы сохранить результаты
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-test-reports
+          path: target/surefire-reports/
+
+      # Шаг 8: Устанавливаем Python 3.8
       - name: Set up Python 3.8
         uses: actions/setup-python@v5
         with:
           python-version: '3.8'
 
-      # Шаг 8: Отладка - проверим Python
+      # Шаг 9: Отладка - проверим Python
       - name: Debug Python version
         run: |
           python --version
           pip --version
 
-      # Шаг 9: Устанавливаем Python-зависимости
+      # Шаг 10: Устанавливаем Python-зависимости
       - name: Install Python dependencies
         run: |
           python -m venv venv
@@ -70,7 +78,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Шаг 10: Проверяем запуск Flask API (без полной инициализации)
+      # Шаг 11: Проверяем запуск Flask API (без полной инициализации)
       - name: Verify Flask API setup
         run: |
           source venv/bin/activate
