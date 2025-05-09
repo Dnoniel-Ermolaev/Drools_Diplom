@@ -1,5 +1,7 @@
 /venv/
 /target/
+/.github/workflows/*
+
 # Исключение скомпилированных файлов
 target/
 __pycache__/
