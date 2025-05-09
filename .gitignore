@@ -1,6 +1,6 @@
 /venv/
 /target/
-/.github/workflows/*
+# /.github/workflows/*
 
 # Исключение скомпилированных файлов
 target/
